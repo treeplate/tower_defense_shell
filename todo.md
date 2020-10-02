@@ -3,6 +3,7 @@
 # TowerDefense
 - be able to lose/win (immediatly quit exit code 0 for win exit code 2 for loss)
 - get rid of `from a to b (c)` print (line 122)
+- better toStrings
 # Parser
 - nothing currently
 # Feature requests
