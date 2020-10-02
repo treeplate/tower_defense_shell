@@ -60,7 +60,7 @@ class TowerStatement extends Statement {
   }
 
   void run(GameManager game) {
-    game.tower(a.eval(), b.eval());
+    game.tower(a.eval(game), b.eval(game));
   }
 }
 
@@ -77,7 +77,7 @@ class ViewStatement extends Statement {
   }
 
   void run(GameManager game) {
-    game.view(a.eval(), b.eval());
+    game.view(a.eval(game), b.eval(game));
   }
 }
 
@@ -88,8 +88,8 @@ class PrintStatement extends Statement {
     Expression expr = parseLiteral(tokens);
     return PrintStatement(expr);
   }
-  void run() {
-    print(expr.eval());
+  void run(GameManager game) {
+    print(expr.eval(game));
   }
 }
 // Expressions

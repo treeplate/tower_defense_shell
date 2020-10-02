@@ -6,5 +6,4 @@
 # Parser
 - nothing currently
 # When done with all other
-- Parser: make `money` be an expression and add print statement
 - Parser+TowerDefense: make `view` be an expression
