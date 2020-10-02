@@ -2,6 +2,8 @@ import 'dart:io';
 import 'towerdefense.dart';
 import 'lexer.dart';
 
+const bool debug = false;
+
 void run(List<Token> tokens, GameManager game) {
   TokenGetter getter = TokenGetter(tokens);
   List<Statement> statements = [];
@@ -25,6 +27,12 @@ Statement parseStatement(TokenGetter tokens) {
   switch(token.name) {
     case "tick":
       return TickStatement();
+    case "debug":
+      if(!debug) {
+        print("Debug not allowed in non-debug mode");
+        exit(3);
+      }
+      return DebugStatement();
     case "tower":
       return TowerStatement.parse(tokens);
     case "view":
@@ -44,6 +52,12 @@ abstract class Statement {
 class TickStatement extends Statement {
   void run(GameManager game) {
     game.tick();
+  }
+}
+
+class DebugStatement extends Statement {
+  void run(GameManager game) {
+    game.debug();
   }
 }
 
