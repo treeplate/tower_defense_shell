@@ -6,5 +6,7 @@
 - be able to lose/win (immediatly quit exit code 0 for win exit code 2 for loss)
 # Parser
 - nothing currently: feel free to add
+# main.dart
+- add source file support
 # Multiple sections:
 - Parser+TowerDefense: make `view` be an expression (GameManager.view returns an int: 0 for null, 1 for enemy, 2 for tower)
