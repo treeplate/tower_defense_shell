@@ -25,6 +25,8 @@ Statement parseStatement(TokenGetter tokens) {
   switch(token.name) {
     case "tick":
       return TickStatement();
+    case "debug":
+      return DebugStatement();
     case "tower":
       return TowerStatement.parse(tokens);
     case "view":
@@ -44,6 +46,12 @@ abstract class Statement {
 class TickStatement extends Statement {
   void run(GameManager game) {
     game.tick();
+  }
+}
+
+class DebugStatement extends Statement {
+  void run(GameManager game) {
+    game.debug();
   }
 }
 
