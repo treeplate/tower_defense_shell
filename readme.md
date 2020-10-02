@@ -1,0 +1,4 @@
+- `tick`
+- `tower x y`
+- `view x y`
+- `money`
