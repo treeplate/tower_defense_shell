@@ -5,5 +5,5 @@
 - get rid of `from a to b (c)` print (line 122)
 # Parser
 - nothing currently
-# When done with all other
+# Feature requests
 - Parser+TowerDefense: make `view` be an expression
