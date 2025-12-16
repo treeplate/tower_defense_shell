@@ -1,4 +1,4 @@
-Welcome to Tower Defense Shell v1.0.1!
+Welcome to Tower Defense Shell!
 
 The following statements are supported:
 

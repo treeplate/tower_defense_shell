@@ -1,0 +1,18 @@
+tower 1 0
+var x = 1
+var y = 1
+while true {
+  print money
+  if y >= 10 {
+      y = 1
+      x = x + 1
+  }
+  if 9 >= y {
+    while money >= 10 {
+      tower x y
+      y = y + 1
+    }
+  }
+  debug
+  tick  
+}

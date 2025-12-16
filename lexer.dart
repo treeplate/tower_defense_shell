@@ -15,10 +15,14 @@ class IntegerToken extends Token {
   final int value;
   String get description => 'integer $value';
 }
-
+class SymbolToken extends Token {
+  SymbolToken(int line, int column, this.symbol) : super(line, column);
+  final String symbol;
+  String get description => 'symbol $symbol';
+}
 class EofToken extends Token {
-  EofToken() : super(-1, -1);
-  String get description => 'end-of-file';
+  EofToken(int line, int column) : super(line, column);
+  String get description => 'end of file';
 }
 
 class SyntaxError implements Exception {
@@ -27,201 +31,204 @@ class SyntaxError implements Exception {
   String toString() => message;
 }
 
-enum _State { top, keyword, integer }
+enum _Category { eof, newline, space, digit, letter, symbol, symbolSequence, other }
+
+_Category _category(int rune) {
+  if (rune < 0)
+    return _Category.eof;
+  if (rune == 0x0A)
+    return _Category.newline;
+  if (rune < 0x20)
+    return _Category.other; // control characters
+  if (rune == 0x20)
+    return _Category.space;
+  if (rune < 0x28)
+    return _Category.symbolSequence;
+  if (rune < 0x2A)
+    return _Category.symbol; // (, )
+  if (rune < 0x30)
+    return _Category.symbolSequence;
+  if (rune < 0x3A)
+    return _Category.digit;
+  if (rune < 0x41)
+    return _Category.symbolSequence;
+  if (rune < 0x5B)
+    return _Category.letter;
+  if (rune < 0x5C)
+    return _Category.symbol; // [
+  if (rune < 0x5D)
+    return _Category.symbolSequence;
+  if (rune < 0x5E)
+    return _Category.symbol; // ]
+  if (rune < 0x61)
+    return _Category.symbolSequence;
+  if (rune < 0x7B)
+    return _Category.letter;
+  if (rune < 0x7C)
+    return _Category.symbol; // {
+  if (rune < 0x7D)
+    return _Category.symbolSequence;
+  if (rune < 0x7E)
+    return _Category.symbol; // }
+  if (rune < 0x7F)
+    return _Category.symbolSequence;
+  return _Category.other;
+}
+
+enum _State { top, keyword, integer, symbolSequence }
 
 Iterable<Token> tokenize(String input) sync* {
   _State state = _State.top;
-  int start;
-  int index = 0;
+  StringBuffer buffer;
   int line = 1;
   int column = 0;
   for (int c in _runesWithEnd(input)) {
     column += 1;
     switch (state) {
       case _State.top:
-        switch (c) {
-          case -1:
+        switch (_category(c)) {
+          case _Category.eof:
             break;
-          case 0x20:
-            break;
-          case 0x0A:
+          case _Category.newline:
             line += 1;
             column = 0;
             break;
-          case 0x30:
-          case 0x31:
-          case 0x32:
-          case 0x33:
-          case 0x34:
-          case 0x35:
-          case 0x36:
-          case 0x37:
-          case 0x38:
-          case 0x39:
-            start = index;
+          case _Category.space:
+            break;
+          case _Category.digit:
+            buffer = StringBuffer();
             state = _State.integer;
             break;
-          case 0x41:
-          case 0x42:
-          case 0x43:
-          case 0x44:
-          case 0x45:
-          case 0x46:
-          case 0x47:
-          case 0x48:
-          case 0x49:
-          case 0x4a:
-          case 0x4b:
-          case 0x4c:
-          case 0x4d:
-          case 0x4e:
-          case 0x4f:
-          case 0x50:
-          case 0x51:
-          case 0x52:
-          case 0x53:
-          case 0x54:
-          case 0x55:
-          case 0x56:
-          case 0x57:
-          case 0x58:
-          case 0x59:
-          case 0x5a:
-          case 0x61:
-          case 0x62:
-          case 0x63:
-          case 0x64:
-          case 0x65:
-          case 0x66:
-          case 0x67:
-          case 0x68:
-          case 0x69:
-          case 0x6a:
-          case 0x6b:
-          case 0x6c:
-          case 0x6d:
-          case 0x6e:
-          case 0x6f:
-          case 0x70:
-          case 0x71:
-          case 0x72:
-          case 0x73:
-          case 0x74:
-          case 0x75:
-          case 0x76:
-          case 0x77:
-          case 0x78:
-          case 0x79:
-          case 0x7a:
-            start = index;
+          case _Category.letter:
+            buffer = StringBuffer();
             state = _State.keyword;
+            break;
+          case _Category.symbol:
+            yield SymbolToken(line, column, String.fromCharCode(c));
+            break;
+          case _Category.symbolSequence:
+            buffer = StringBuffer();
+            state = _State.symbolSequence;
             break;
           default: _error(line, column, 'unexpected character "${String.fromCharCode(c)}"');
         }
         break;
       case _State.integer:
-        switch (c) {
-          case -1:
-            yield IntegerToken(line, column, int.parse(input.substring(start, index)));
+        switch (_category(c)) {
+          case _Category.eof:
+            yield IntegerToken(line, column, int.parse(buffer.toString()));
+            buffer = null;
             break;
-          case 0x20:
-            yield IntegerToken(line, column, int.parse(input.substring(start, index)));
-            state = _State.top;
-            break;
-          case 0x0A:
-            yield IntegerToken(line, column, int.parse(input.substring(start, index)));
+          case _Category.newline:
+            yield IntegerToken(line, column, int.parse(buffer.toString()));
+            buffer = null;
             state = _State.top;
             line += 1;
             column = 0;
             break;
-          case 0x30:
-          case 0x31:
-          case 0x32:
-          case 0x33:
-          case 0x34:
-          case 0x35:
-          case 0x36:
-          case 0x37:
-          case 0x38:
-          case 0x39:
+          case _Category.space:
+            yield IntegerToken(line, column, int.parse(buffer.toString()));
+            buffer = null;
+            state = _State.top;
+            break;
+          case _Category.digit:
+            break;
+          case _Category.symbol:
+            yield IntegerToken(line, column, int.parse(buffer.toString()));
+            buffer = null;
+            yield SymbolToken(line, column, String.fromCharCode(c));
+            state = _State.top;
+            break;
+          case _Category.symbolSequence:
+            yield IntegerToken(line, column, int.parse(buffer.toString()));
+            buffer = null;
+            buffer = StringBuffer();
+            state = _State.symbolSequence;
             break;
           default: _error(line, column, 'unexpected character "${String.fromCharCode(c)}" in integer');
         }
         break;
       case _State.keyword:
-        switch (c) {
-          case -1:
-            yield KeywordToken(line, column, input.substring(start, index));
+        switch (_category(c)) {
+          case _Category.eof:
+            yield KeywordToken(line, column, buffer.toString());
+            buffer = null;
             break;
-          case 0x20:
-            yield KeywordToken(line, column, input.substring(start, index));
-            state = _State.top;
-            break;
-          case 0x0A:
-            yield KeywordToken(line, column, input.substring(start, index));
+          case _Category.newline:
+            yield KeywordToken(line, column, buffer.toString());
+            buffer = null;
             state = _State.top;
             line += 1;
             column = 0;
             break;
-          case 0x41:
-          case 0x42:
-          case 0x43:
-          case 0x44:
-          case 0x45:
-          case 0x46:
-          case 0x47:
-          case 0x48:
-          case 0x49:
-          case 0x4a:
-          case 0x4b:
-          case 0x4c:
-          case 0x4d:
-          case 0x4e:
-          case 0x4f:
-          case 0x50:
-          case 0x51:
-          case 0x52:
-          case 0x53:
-          case 0x54:
-          case 0x55:
-          case 0x56:
-          case 0x57:
-          case 0x58:
-          case 0x59:
-          case 0x5a:
-          case 0x61:
-          case 0x62:
-          case 0x63:
-          case 0x64:
-          case 0x65:
-          case 0x66:
-          case 0x67:
-          case 0x68:
-          case 0x69:
-          case 0x6a:
-          case 0x6b:
-          case 0x6c:
-          case 0x6d:
-          case 0x6e:
-          case 0x6f:
-          case 0x70:
-          case 0x71:
-          case 0x72:
-          case 0x73:
-          case 0x74:
-          case 0x75:
-          case 0x76:
-          case 0x77:
-          case 0x78:
-          case 0x79:
-          case 0x7a:
+          case _Category.space:
+            yield KeywordToken(line, column, buffer.toString());
+            buffer = null;
+            state = _State.top;
+            break;
+          case _Category.digit:
+          case _Category.letter:
+            break;
+          case _Category.symbol:
+            yield KeywordToken(line, column, buffer.toString());
+            buffer = null;
+            yield SymbolToken(line, column, String.fromCharCode(c));
+            state = _State.top;
+            break;
+          case _Category.symbolSequence:
+            yield IntegerToken(line, column, int.parse(buffer.toString()));
+            buffer = null;
+            buffer = StringBuffer();
+            state = _State.symbolSequence;
+            break;
+          default: _error(line, column, 'unexpected character "${String.fromCharCode(c)}" in keyword');
+        }
+        break;
+      case _State.symbolSequence:
+        switch (_category(c)) {
+          case _Category.eof:
+            yield SymbolToken(line, column, buffer.toString());
+            buffer = null;
+            break;
+          case _Category.newline:
+            yield SymbolToken(line, column, buffer.toString());
+            buffer = null;
+            state = _State.top;
+            line += 1;
+            column = 0;
+            break;
+          case _Category.space:
+            yield SymbolToken(line, column, buffer.toString());
+            buffer = null;
+            state = _State.top;
+            break;
+          case _Category.digit:
+            yield SymbolToken(line, column, buffer.toString());
+            buffer = null;
+            buffer = StringBuffer();
+            state = _State.integer;
+            break;
+          case _Category.letter:
+            yield SymbolToken(line, column, buffer.toString());
+            buffer = null;
+            buffer = StringBuffer();
+            state = _State.keyword;
+            break;
+          case _Category.symbol:
+            yield SymbolToken(line, column, buffer.toString());
+            buffer = null;
+            yield SymbolToken(line, column, String.fromCharCode(c));
+            state = _State.top;
+            break;
+          case _Category.symbolSequence:
             break;
           default: _error(line, column, 'unexpected character "${String.fromCharCode(c)}" in keyword');
         }
         break;
     }
-    index += 1;
+    buffer?.write(String.fromCharCode(c));
   }
+  yield EofToken(line, column);
 }
 
 void _error(int line, int column, String message) {

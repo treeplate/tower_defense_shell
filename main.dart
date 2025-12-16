@@ -4,8 +4,16 @@ import 'parser.dart';
 import 'dart:io';
 
 void main() {
-  GameManager manager = GameManager(3, 3);
-  while(true) {
-    run(tokenize(stdin.readLineSync()).toList() + [EofToken()], manager);
+  print('tower_defense_shell');
+  GameManager manager = GameManager(
+    width: 10,
+    height: 10,
+    maxEnemies: 10,
+    enemyHp: 5,
+    initialMoney: 20,
+  );
+  Scope scope = run(tokenize(File('ai.td').readAsStringSync()).toList(), manager);
+  while (true) {
+    scope = run(tokenize(stdin.readLineSync()).toList(), manager, scope);
   }
 }

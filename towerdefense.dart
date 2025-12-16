@@ -1,9 +1,18 @@
 import 'dart:math' as math;
+import 'dart:io';
 
 abstract class Entity {
   void tick(int x, int y, GameManager game);
-  int get speed;
+  bool get moves;
   int get pathCost;
+  int get type;
+}
+
+class _Candidate {
+  _Candidate(this.enemy, this.x, this.y);
+  final Enemy enemy;
+  final int x;
+  final int y;
 }
 
 class Tower extends Entity {
@@ -13,24 +22,32 @@ class Tower extends Entity {
     int maxx = math.min(x + range + 1, game.width);
     int miny = math.max(y - range, 0);
     int maxy = math.min(y + range + 1, game.height);
+    List<_Candidate> enemies = <_Candidate>[];
     for (y = miny; y < maxy; y += 1) {
       for (x = minx; x < maxx; x += 1) {
         Entity target = game.at(x, y);
-        if (target is Enemy) {
-          game.fireAt(x, y);
-          break;
-        }
+        if (target is Enemy)
+          enemies.add(_Candidate(target, x, y));
       }
     }
+    if (enemies.isNotEmpty) {
+      enemies.sort((_Candidate a, _Candidate b) => a.enemy.hp - b.enemy.hp);
+      _Candidate target = enemies.first;
+      game.fireAt(target.x, target.y, 1);
+    }
   }
-  int get speed => 0;
-  int get pathCost => 10;
+  bool get moves => false;
+  int get pathCost => 1;
+  int get type => 1;
 }
 
 class Enemy extends Entity {
+  Enemy(this.hp);
+  int hp;
   void tick(int x, int y, GameManager game) { }
-  int get speed => 1;
+  bool get moves => true;
   int get pathCost => 1;
+  int get type => 2;
 }
 
 class _MovePlan {
@@ -41,10 +58,15 @@ class _MovePlan {
 }
 
 class GameManager {
-  GameManager(this.width, int height) : _grid = List<Entity>(width * height) {
-    if (_grid[0] == null) {
-      _grid[0] = Enemy();
-    }
+  GameManager({
+    this.width = 10,
+    int height = 10,
+    int maxEnemies = 1,
+    this.enemyHp = 1,
+    int initialMoney = 10,
+  }) : _grid = List<Entity>(width * height) {
+     _enemiesRemaining = maxEnemies;
+     _money = initialMoney;
     _recomputeCosts();
   }
 
@@ -52,6 +74,10 @@ class GameManager {
   int get height => _grid.length ~/ width;
   final List<Entity> _grid;
   List<int> _costs;
+
+  final int enemyHp;
+
+  int _enemiesRemaining;
 
   void _recomputeCosts() {
     _costs = List<int>.filled(_grid.length, 0);
@@ -92,7 +118,7 @@ class GameManager {
     Set<_MovePlan> pending = <_MovePlan>{};
     for (int index = 0; index < _grid.length; index += 1) {
       Entity entity = _grid[index];
-      if (entity != null && entity.speed > 0) {
+      if (entity != null && entity.moves) {
         int local = _costs[index];
         int target;
         if (index < _grid.length - width) { // else bottom edge
@@ -119,7 +145,6 @@ class GameManager {
             local = _costs[index - width];
           }
         }
-        print('from $index to $target ($local)');
         if (target != null) {
           pending.add(_MovePlan(entity, index, target));
         }
@@ -136,10 +161,21 @@ class GameManager {
         }
       }
       if (failures.length == pending.length) {
-        print('got stuck');
         break;
       }
       pending = failures;      
+    }
+    if (_grid[0] == null && _enemiesRemaining > 0) {
+      _grid[0] = Enemy(enemyHp);
+      _enemiesRemaining -= 1;
+    }
+    if (_enemiesRemaining == 0 && _grid.indexWhere((Entity entity) => entity is Enemy) == -1) {
+      print("You Win!");
+      exit(0);
+    }
+    if (_grid.last is Enemy) {
+      print("You Lose!");
+      exit(2);
     }
   }
 
@@ -147,12 +183,20 @@ class GameManager {
     return _grid[y * width + x];
   }
 
-  void fireAt(int x, int y) {
-    _grid[y * width + x] = null;
+  void fireAt(int x, int y, int power) {
+    Entity target = _grid[y * width + x];
+    if (target is Enemy) {
+      target.hp -= power;
+      if (target.hp <= 0) {
+        _money += 10;
+        _grid[y * width + x] = null;
+      }
+    }
   }
 
   // if money > 9 and position at x, y clear, place tower x, y and decrease money by 10
   void tower(int x, int y) {
+    if(x > width-1 || y > height-1) return;
     if (_money > 9 && _grid[y * width + x] == null) {
       _grid[y * width + x] = Tower();
       _money -= 10;
@@ -160,14 +204,11 @@ class GameManager {
     }
   }
 
-  // print what is at x,y
-  void view(int x, int y) {
-    print(_grid[y * width + x]);
-  }
-
   // return money
   int get money => _money;
-  int _money = 10000;
+  int _money;
+
+  static const String CSI = '\x1B[';
 
   void debug() {
     StringBuffer buffer = StringBuffer();
@@ -175,7 +216,7 @@ class GameManager {
       for (int x = 0; x < width; x += 1) {
         Entity entity = _grid[y * width + x];
         if (entity is Enemy) {
-          buffer.write('  E  ');
+          buffer.write(' ${CSI}31mE${entity.hp.toString().padLeft(2, "0")}${CSI}0m ');
         } else if (entity is Tower) {
           buffer.write('  T  ');
         } else if (entity == null) {
